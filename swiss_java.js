@@ -1,22 +1,30 @@
 
 //This is where you can change the details of the simulation
-let simulations = 1000 //number of simulations
+let simulations = 200 //number of simulations
 let simulation_results = [] //result for every simulation
 let rounds = 7 //number of rounds
 
 function check_condition() {
     //function goes in here, so you don't have to look it up down there
-    return is_second_unhappy(1);
+    return is_player_of_interest1_first(1);
 }
 
-let player_of_interest_1 = 2
+/* 
+is_player_of_interest1_first()
+second_didnt_play_1()
+third_didnt_play_1_or_2()
+player1_player2_final_top4(group)
+is_player_of_interest1_in_top_n(1,4)
+*/
+
+let player_of_interest_1 = 18
 let player_of_interest_2 = 2
 let player_of_interest_3 = 10
 
 let draw_on_purpose = false
 let randomize_round_1 = false
 let print_only_last_simulation = true
-let treat_bye_as_player = false
+let treat_bye_as_player = false //for tiebreak calculation
 
 let win_percentage_skillgap = [50, 60, 70, 85, 90, 95, 98, 98, 100]
 
@@ -25,22 +33,21 @@ let player_list = [
     { id: 2, group: 0, name: "Christian", skill: 27, games: [] },
     { id: 3, group: 0, name: "Reinhard", skill: 26, games: [] },
     { id: 4, group: 0, name: "PeterD", skill: 26, games: [] },
-    { id: 5, group: 0, name: "GerhardF", skill: 19, games: [] },
-    { id: 6, group: 0, name: "GerhardL", skill: 21, games: [] },
+    { id: 5, group: 0, name: "GerhardF", skill: 20, games: [] },
+    { id: 6, group: 0, name: "GerhardL", skill: 20, games: [] },
     { id: 7, group: 0, name: "Srdjan", skill: 22, games: [] },
-    { id: 8, group: 0, name: "PeterR", skill: 19, games: [] },
+    { id: 8, group: 0, name: "PeterR", skill: 20, games: [] },
     { id: 9, group: 1, name: "Clemens", skill: 22, games: [] },
-    { id: 10, group: 1, name: "Johannes", skill: 8, games: [] },
-    { id: 11, group: 1, name: "MichaelE", skill: 8, games: [] },
-    { id: 12, group: 1, name: "Gergley", skill: 9, games: [] },
-    { id: 13, group: 1, name: "Gernot", skill: 8, games: [] },
-    { id: 14, group: 1, name: "Fabian", skill: 8, games: [] },
-    { id: 15, group: 1, name: "Stephan", skill: 7, games: [] },
-    { id: 16, group: 1, name: "MichaelR", skill: 8, games: [] },
-    { id: 17, group: 1, name: "Aleyna", skill: 6, games: [] },
+    { id: 10, group: 1, name: "Johannes", skill: 18, games: [] },
+    { id: 11, group: 1, name: "MichaelE", skill: 18, games: [] },
+    { id: 12, group: 1, name: "Gergley", skill: 19, games: [] },
+    { id: 13, group: 1, name: "Gernot", skill: 18, games: [] },
+    { id: 14, group: 1, name: "Fabian", skill: 18, games: [] },
+    { id: 15, group: 1, name: "Stephan", skill: 17, games: [] },
+    { id: 16, group: 1, name: "MichaelR", skill: 18, games: [] },
+    { id: 17, group: 1, name: "Aleyna", skill: 16, games: [] },
     { id: 18, group: 1, name: "Alexander", skill: 22, games: [] },
-    { id: 19, group: 1, name: "Markus", skill: 22, games: [] },
-
+    { id: 19, group: 1, name: "Markus", skill: 22, games: [] },             
 ]
 
 //This is where the simulation starts
@@ -59,7 +66,7 @@ for (let n = 1; n <= simulations; n++) {
 
         let pair_counter = 0;
         let pairs = []
-        while (pair_counter < 5 && pairs.length !== Math.ceil(player_list.length / 2)) {
+        while (pair_counter < 10 && pairs.length !== Math.ceil(player_list.length / 2)) {
             pairs = pair_players();
             pair_counter++;
         }
@@ -318,15 +325,57 @@ function check_percent(sim_results) {
     console.log(roundedPercentage + '%');
 }
 
-
-//##### Check functions
-
-function is_player_of_interest1_first() {
-    if (print_gate) { console.log(`Spieler von Interesse: ${player_list[player_of_interest_1 - 1].name} und Gewinner: ${sort_players_final_score(undefined, rounds)[0].name}`) }
-    return (player_list[player_of_interest_1 - 1].id === sort_players_final_score(undefined, rounds)[0].id)
+function opponents_lost_to(player) {
+    //returns opponents the player lost against
+    let op_lost_to = [];
+    for (game of player.games){
+        if(game.result === 0){op_lost_to.push(game.opponent)}
+    }
+    return op_lost_to
 }
 
-function is_second_unhappy(group) {
+function calc_average_score(players) {
+    //returns average score of playerlist
+    if(players === []) {return -1};
+    let sum = 0;
+    for (player of players) {
+        sum = parseInt(sum + calc_score(player));
+    }
+    let average = (sum / players.length).toFixed(2);
+    return average;
+}
+//##### Check functions
+
+function is_player_of_interest1_first(group) {
+    if (print_gate) { console.log(`Spieler von Interesse: ${player_list[player_of_interest_1 - 1].name} und Gewinner: ${sort_players_final_score(group, rounds)[0].name}`) }
+    return (player_list[player_of_interest_1 - 1].id === sort_players_final_score(group, rounds)[0].id)
+}
+
+function is_player_of_interest1_n_th(group,x) {
+    if (print_gate) { console.log(`Spieler von Interesse: ${player_list[player_of_interest_1 - 1].name} und ${x}-ter Platz: ${sort_players_final_score(group, rounds)[x].name}`) }
+    return (player_list[player_of_interest_1 - 1].id === sort_players_final_score(group, rounds)[x-1].id)
+}
+
+function is_player_of_interest1_in_top_n(group,x) {
+    let sorted_players = sort_players_final_score(group, rounds);
+    let poi_1 = player_list[player_of_interest_1 - 1];
+    if (print_gate) { 
+        let index
+        for (let i = 0; i < sorted_players.length; i++) {
+            if (sorted_players[i].id === poi_1.id) {
+              index = i;
+              break;
+            }
+          }
+        console.log(`Spieler von Interesse: ${player_list[player_of_interest_1 - 1].name} und Platz: ${[index+1]}`) 
+    }
+    for (let i = 0; i < x; i++){
+        if(player_list[player_of_interest_1 - 1].id === sorted_players[i].id){return true}
+    }
+    return false
+}
+
+function second_didnt_play_1 (group) {
     //second player of group didn't get the chance to play firt player
     let p1 = player_list.find(obj => obj.id === sort_players_final_score(group, rounds)[0].id);
     let p2 = player_list.find(obj => obj.id === sort_players_final_score(group, rounds)[1].id);
@@ -345,7 +394,8 @@ function is_second_unhappy(group) {
     }
     return true
 }
-function is_third_unhappy(group) {
+
+function third_didnt_play_1_or_2 (group) {
     //third player of group didn't get the chance to play first and second
     let p1 = player_list.find(obj => obj.id === sort_players_final_score(group, rounds)[0].id);
     let p2 = player_list.find(obj => obj.id === sort_players_final_score(group, rounds)[1].id);
@@ -353,12 +403,12 @@ function is_third_unhappy(group) {
 
     if (print_gate) {
         let output = [];
-        for (game of p3.games) {
-            output.push(game.opponent.name)
+        for (opponent of opponents_lost_to(p3)) {
+            output.push(opponent.name)
         }
         console.log(`First: ${p1.name} Second: ${p2.name}`)
         console.log(`Third: ${p3.name}`)
-        console.log(`Opponents: ${output}`)
+        console.log(`Opponents lost to: ${output}`)
     }
     for (game of p3.games) {
         if (game.opponent.name === p1.name && game.result === 0) { return false }
@@ -389,5 +439,15 @@ function player1_player2_final_top4(group) {
     return true
 }
 
+function player1_or2_not_on_forth_place(group) {
+    //just a quick check, that doesn't have real meaning
+    let place_4 = player_list.find(obj => obj.id === sort_players_final_score(group, rounds)[3].id);
+    let poi_1 = player_list[player_of_interest_1 - 1];
+    let poi_2 = player_list[player_of_interest_2 - 1];
+    if (place_4.id === poi_1.id || place_4.id === poi_2.id) {return false}
+    return true
+}
 console.log(player_list)
 
+
+let k = 1
