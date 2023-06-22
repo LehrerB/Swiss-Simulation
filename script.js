@@ -1016,7 +1016,7 @@ function blossom (edges, maxCardinality) {
 
 };
 
-
+let all_edges = [];
 
 function pair_players() {
     let pairs = [];
@@ -1041,7 +1041,7 @@ function pair_players() {
     }
 
     // create edges for each player
-    let scores = player_list.map(calc_score);
+    let scores = player_list.map(player => calc_score(player));
     let edges = [];
     for (let i = 0; i < player_list.length; i++) {
         let p1 = player_list[i];
@@ -1053,8 +1053,9 @@ function pair_players() {
                 continue;
             }
 
+            // let weight = player_list.length * 16 - Math.max(scores[i], scores[j]) * distance;
             let distance = Math.abs(scores[i] - scores[j]);
-            let weight = player_list.length * 16 - Math.max(scores[i], scores[j]) * distance;
+            let weight = Math.max(scores[i], scores[j]) * distance;
             edges.push([i, j, weight]);
         }
 
@@ -1088,6 +1089,7 @@ function pair_players() {
         }
     }
     pairs = pairs.sort((a,b) => calc_score(b[0]) - calc_score(a[0]));
+    all_edges.push({round: round, edges: edges, scores: scores, pairs: pairs});
     return pairs;
 
     /* old version

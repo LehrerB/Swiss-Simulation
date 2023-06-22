@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+        content="user-scalable=no, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, minimal-ui">
+    <script src="https://unpkg.com/cytoscape@3.10.0/dist/cytoscape.min.js"></script>
+    <script src="./script.js"></script>
+    <title>Swissy</title>
+
+    <style>
+        body {
+            font: 14px helvetica neue, helvetica, arial, sans-serif;
+        }
+        #cy {
+            height: 95%;
+            width: 95%;
+            left: 0;
+            top: 50px;
+            position: absolute;
+        }
+    </style>
+</head>
+
+<body>
+    <button id="left">&larr;</button><button id="right">&rarr;</button>
+    <div class="wrapper"><div id="cy"></div></div>
+    <script>
+        let nodes = player_list.map(player => ({ data: { id: player.id.toString() } }));
+        function transformEdges(edges) {
+            return edges.map(edge => {
+                let id1 = player_list[edge[0]].id.toString();
+                let id2 = player_list[edge[1]].id.toString();
+                return {
+                    data: {
+                        id: `${id1}-${id2}`,
+                        source: id1,
+                        target: id2,
+                        weight: edge[2]
+                    }
+                };
+            });
+        }
+
+        function updateGraph(index) {
+            let data = all_edges[index];
+            let edges = data.edges;
+            let graph = {
+                container: document.getElementById('cy'),
+                layout: { name: 'grid', rows: 2 },
+                style: [{
+                    selector: 'node',
+                    css: {
+                        'content': 'data(id)',
+                        'text-valign': 'center',
+                        'text-halign': 'center'
+                    }
+                },
+                {
+                    selector: 'edge',
+                    css: {
+                        'label': 'data(weight)',
+                        'text-margin-y': 15,
+                        'text-rotation': 'autorotate'
+                    }
+                }],
+                elements: {
+                    nodes: nodes,
+                    edges: transformEdges(edges)
+                }
+            }
+            console.log(graph);
+            window.cy = cytoscape(graph);
+        }
+
+        console.log(all_edges);
+
+        let index = 0;
+        document.getElementById('left').onclick = () => {
+            if (index > 0) {
+                index--;
+                updateGraph(index);
+            }
+        }
+        document.getElementById('right').onclick = () => {
+            if (index < all_edges.length - 1) {
+                index++;
+                updateGraph(index);
+            }
+        }
+
+        updateGraph(index);
+
+
+        // let cy = window.cy = cytoscape({
+        //     container: document.getElementById('cy'),
+        //     layout: { name: 'grid', rows: 2 },
+        //     style: [{
+        //         selector: 'node',
+        //         css: {
+        //             'content': 'data(id)',
+        //             'text-valign': 'center',
+        //             'text-halign': 'center'
+        //         }
+        //     },
+        //     {
+        //         selector: 'edge',
+        //         css: {
+        //             'label': 'data(weight)',
+        //             'text-margin-y': 15,
+        //             'text-rotation': 'autorotate'
+        //         }
+        //     }
+        //     ],
+        //     elements: {
+        //         nodes: [{
+        //             data: { id: 'n0' }
+        //         }, {
+        //             data: { id: 'n1' }
+        //         }, {
+        //             data: { id: 'n2' }
+        //         }, {
+        //             data: { id: 'n3' }
+        //         }],
+        //         edges: [{
+        //             data: {
+        //                 id: 'n0n1',
+        //                 source: 'n0',
+        //                 target: 'n1',
+        //                 weight: 3
+        //             }
+        //         },
+        //         {
+        //             data: {
+        //                 id: 'n1n2',
+        //                 source: 'n1',
+        //                 target: 'n2',
+        //                 weight: 5
+        //             }
+        //         },
+        //         {
+        //             data: {
+        //                 id: 'n2n3',
+        //                 source: 'n2',
+        //                 target: 'n3',
+        //                 weight: 7
+        //             }
+        //         }
+        //         ]
+        //     }
+        // });
+    </script>
+</body>
+
+</html>
