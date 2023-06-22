@@ -8,14 +8,14 @@ var result = blossom(data, true);
 */
 
 //This is where you can change the details of the simulation
-let simulations = 200; //number of simulations
+let simulations = 100; //number of simulations
 let simulation_results = []; //result for every simulation
 let rounds = 7; //number of rounds
 let round = 0; // current round
 
 function check_condition() {
     //function goes in here, so you don't have to look it up down there
-    return is_player_of_interest1_first(1);
+    return third_didnt_play_1_or_2(1);
 }
 
 /* 
@@ -227,7 +227,7 @@ function check_percent(sim_results) {
 function opponents_lost_to(player) {
     //returns opponents the player lost against
     let op_lost_to = [];
-    for (game of player.games) {
+    for (let game of player.games) {
         if (game.result === 0) { op_lost_to.push(game.opponent) }
     }
     return op_lost_to
@@ -280,7 +280,7 @@ function second_didnt_play_1(group) {
     let p2 = player_list.find(obj => obj.id === sort_players_final_score(group, rounds)[1].id);
     if (print_gate) {
         let output = [];
-        for (game of p2.games) {
+        for (let game of p2.games) {
             output.push(game.opponent.name)
         }
         console.log(`First: ${p1.name}`)
@@ -288,7 +288,7 @@ function second_didnt_play_1(group) {
         console.log(`Opponents: ${output}`)
     }
     //if (calc_score(p1, rounds)>calc_score(p2, rounds)){return false}
-    for (game of p2.games) {
+    for (let game of p2.games) {
         if (game.opponent.name === p1.name && game.result === 0) { return false }
     }
     return true
@@ -302,14 +302,14 @@ function third_didnt_play_1_or_2(group) {
 
     if (print_gate) {
         let output = [];
-        for (opponent of opponents_lost_to(p3)) {
+        for (let opponent of opponents_lost_to(p3)) {
             output.push(opponent.name)
         }
         console.log(`First: ${p1.name} Second: ${p2.name}`)
         console.log(`Third: ${p3.name}`)
         console.log(`Opponents lost to: ${output}`)
     }
-    for (game of p3.games) {
+    for (let game of p3.games) {
         if (game.opponent.name === p1.name && game.result === 0) { return false }
         if (game.opponent.name === p2.name && game.result === 0) { return false }
     }
@@ -1064,6 +1064,9 @@ function pair_players() {
         //     edges.push([i, j, 1]);
         // }
     }
+/*     console.log(player_list)
+    console.log(scores)
+    console.log(edges) */
 
     let result = blossom(edges, true);
     for (let i = 0; i < result.length - 1; i++) {
