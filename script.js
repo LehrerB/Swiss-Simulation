@@ -8,14 +8,16 @@ var result = blossom(data, true);
 */
 
 //This is where you can change the details of the simulation
-let simulations = 100; //number of simulations
+let simulations = 1000; //number of simulations
 let simulation_results = []; //result for every simulation
 let rounds = 7; //number of rounds
 let round = 0; // current round
+let points_win = 1;
+let points_draw = 0.5;
 
 function check_condition() {
     //function goes in here, so you don't have to look it up down there
-    return third_didnt_play_1_or_2(1);
+    return measure_accuracy_of_places(undefined);
 }
 
 /* 
@@ -24,21 +26,23 @@ second_didnt_play_1()
 third_didnt_play_1_or_2()
 player1_player2_final_top4(group)
 is_player_of_interest1_in_top_n(1,4)
+measure_accuracy_of_places(undefined)
 */
 
 let player_of_interest_1 = 1
-let player_of_interest_2 = 2
-let player_of_interest_3 = 3
+let player_of_interest_2 = 12
+let player_of_interest_3 = 13
 
-let draw_on_purpose = false
-let randomize_round_1 = false
-let print_only_last_simulation = true
-let treat_bye_as_player = false //for tiebreak calculation
+let draw_on_purpose = false;
+let better_player_always_wins_equals_draw = true;
+let randomize_round_1 = true;
+let print_only_last_simulation = true;
+let treat_bye_as_player = false; //for tiebreak calculation
 
 let win_percentage_skillgap = [50, 60, 70, 85, 90, 95, 98, 98, 100]
 
 let player_list = [
-    { id: 11, group: 0, skill: 30, games: [], name: "Julia" },
+    { id: 1, group: 0, skill: 30, games: [], name: "Julia" },
     { id: 12, group: 0, skill: 27, games: [], name: "Christian" },
     { id: 13, group: 0, skill: 26, games: [], name: "Reinhard" },
     { id: 14, group: 0, skill: 26, games: [], name: "PeterD" },
@@ -55,9 +59,8 @@ let player_list = [
     { id: 25, group: 1, skill: 17, games: [], name: "Stephan" },
     { id: 26, group: 1, skill: 18, games: [], name: "MichaelR" },
     { id: 27, group: 1, skill: 16, games: [], name: "Aleyna" },
-    // { id: 28, group: 1, skill: 22, games: [], name: "Alexander" },
+    { id: 28, group: 1, skill: 22, games: [], name: "Alexander" },
     { id: 29, group: 1, skill: 22, games: [], name: "Markus" }
-    // { id: -1, group: 0, skill: 0, games: [], name: "bye" }
 ]
 
 
@@ -114,11 +117,26 @@ function calc_final_score(player, rounds) {
     }
     let op_opponent_average = (sum2 / opponent_opponent_scores.length * 100).toFixed(1)
 
-    let final_score = parseInt(calc_score(player, rounds) * 1000000) + parseInt(opponent_average * 1000) + parseInt(op_opponent_average)
+    let final_score = parseInt(calc_score(player, rounds) * 10000000) + parseInt(opponent_average * 1000) + parseInt(op_opponent_average)
     //console.log(opponent_average);
     //console.log(op_opponent_average);
     //console.log(final_score)
     return final_score
+}
+
+function sort_players_skill(group_id) { //sorts players, only subgroup if specified)
+    let sorted = player_list;
+    if (group_id) {
+        sorted = sorted.filter(x => x.group === group_id);
+    }
+    return sorted
+        .map(player => ({
+            id: player.id,
+            name: player.name,
+            score: player.skill
+        })
+        )
+        .sort((a, b) => (a.score > b.score) ? -1 : (a.score < b.score) ? 1 : 0);
 }
 
 function sort_players(group_id, rounds) { //sorts players, only subgroup if specified, only up until round if specified)
@@ -149,6 +167,24 @@ function sort_players_final_score(group_id, rounds) { //sorts players, only subg
         })
         )
         .sort((a, b) => (a.score > b.score) ? -1 : (a.score < b.score) ? 1 : 0);
+}
+
+function get_players_on_place_n(sorted_list, n){
+    let score = sorted_list[n-1].score
+    let place_n = []
+    for (let player of sorted_list){
+    if(score === player.score){place_n.push(player_list.find(obj => obj.id === player.id))}
+    }
+    return place_n
+}
+
+function get_places_of_player_id(sorted_list, player_id){
+    let score = sorted_list.find(obj => obj.id === player_id).score;
+    let places = []
+    for (let i = 0; i < sorted_list.length; i++){
+    if(score === sorted_list[i].score){places.push(i+1)}
+    }
+    return places
 }
 
 function shuffleArray(array) {
@@ -193,12 +229,14 @@ function find_opponent(player, vs) {
 
 function determine_result(player1, player2) { //returns 0, 1 or 0.5
     if (player2.name === "bye") { return 1; }
-    if (determine_draw(player1, player2)) { return 0.5; }
+    if (better_player_always_wins_equals_draw && player1.skill === player2.skill) {return points_draw};
+    if (!(better_player_always_wins_equals_draw)&&determine_draw(player1, player2)) { return points_draw; }
     let skill_gap = Math.abs(player1.skill - player2.skill);
     // skill_gap is 0 -> first entry, skill_gap >= array length -> 100
     let win_perc = win_percentage_skillgap[skill_gap] ?? 100;
+    if (better_player_always_wins_equals_draw) {win_perc = player1.skill === player2.skill ? 50 : 100}
     if (player1.skill < player2.skill) { win_perc = 100 - win_perc; }
-    return (determine_win(win_perc)) ? 1 : 0;
+    return (determine_win(win_perc)) ? points_win : 0;
 }
 
 function determine_win(win_perc) {
@@ -236,13 +274,14 @@ function opponents_lost_to(player) {
 function calc_average_score(players) {
     //returns average score of playerlist
     if (players === []) { return -1 };
-    let sum = 0;
+    let sum = 0;sort_players_final_score
     for (player of players) {
         sum = parseInt(sum + calc_score(player));
     }
     let average = (sum / players.length).toFixed(2);
     return average;
 }
+
 //##### Check functions
 
 function is_player_of_interest1_first(group) {
@@ -275,7 +314,7 @@ function is_player_of_interest1_in_top_n(group, x) {
 }
 
 function second_didnt_play_1(group) {
-    //second player of group didn't get the chance to play firt player
+    //second player of group didn't get the chance to play firt player OR won
     let p1 = player_list.find(obj => obj.id === sort_players_final_score(group, rounds)[0].id);
     let p2 = player_list.find(obj => obj.id === sort_players_final_score(group, rounds)[1].id);
     if (print_gate) {
@@ -289,13 +328,13 @@ function second_didnt_play_1(group) {
     }
     //if (calc_score(p1, rounds)>calc_score(p2, rounds)){return false}
     for (let game of p2.games) {
-        if (game.opponent.name === p1.name && game.result === 0) { return false }
+        if (game.opponent.name === p1.name && !(game.result === 1)) { return false }
     }
     return true
 }
 
 function third_didnt_play_1_or_2(group) {
-    //third player of group didn't get the chance to play first and second
+    //third player of group didn't play against first and second OR won
     let p1 = player_list.find(obj => obj.id === sort_players_final_score(group, rounds)[0].id);
     let p2 = player_list.find(obj => obj.id === sort_players_final_score(group, rounds)[1].id);
     let p3 = player_list.find(obj => obj.id === sort_players_final_score(group, rounds)[2].id);
@@ -310,8 +349,8 @@ function third_didnt_play_1_or_2(group) {
         console.log(`Opponents lost to: ${output}`)
     }
     for (let game of p3.games) {
-        if (game.opponent.name === p1.name && game.result === 0) { return false }
-        if (game.opponent.name === p2.name && game.result === 0) { return false }
+        if (game.opponent.name === p1.name && !(game.result === 1)) { return false }
+        if (game.opponent.name === p2.name && !(game.result === 1)) { return false }
     }
     return true
 }
@@ -348,8 +387,38 @@ function player1_or2_not_on_forth_place(group) {
 }
 console.log(player_list)
 
-
-let k = 1
+function measure_accuracy_of_places(group_id){
+//compares expected place with actual place
+//the higher the number, the less accurate is the placement
+let accuracy_points = [];
+for(let player of player_list){
+    let expected_places = get_places_of_player_id(sort_players_skill(group_id),player.id,undefined)
+    let actual_places = get_places_of_player_id(sort_players_final_score(group_id,undefined),player.id,undefined)
+    //if two players have the same skill, both places are acceptable
+    //if two players have the same place, it is not acceptable
+    let distance = 0;
+    let a_distances = [];
+    for(let a of actual_places){
+        let e_distances = [];
+        for(let e of expected_places){
+            distance = Math.abs(a-e);
+            e_distances.push(distance);
+        }
+        let e_distance_min = Math.min(...e_distances);
+        a_distances.push(e_distance_min);
+    }
+    let accuracy_value = Math.max(...a_distances)
+    accuracy_points.push(accuracy_value);
+    if(print_gate){
+        console.log(`Player: ${player.name}`)
+        console.log(`Expected Places: ${expected_places.join(' ')}`)
+        console.log(`Actual Places: ${actual_places.join(' ')}`)
+        console.log(`Distance: ${accuracy_value}`)
+        }
+}
+let accuracy_sum = accuracy_points.reduce((accumulator, currentValue) => accumulator + currentValue, 0);
+return accuracy_sum
+}
 
 
 
@@ -1042,6 +1111,7 @@ function pair_players() {
 
     // create edges for each player
     let scores = player_list.map(player => calc_score(player));
+    if(print_gate) {console.log(scores)}
     let edges = [];
     for (let i = 0; i < player_list.length; i++) {
         let p1 = player_list[i];
@@ -1053,9 +1123,10 @@ function pair_players() {
                 continue;
             }
 
-            // let weight = player_list.length * 16 - Math.max(scores[i], scores[j]) * distance;
             let distance = Math.abs(scores[i] - scores[j]);
-            let weight = Math.max(scores[i], scores[j]) * distance;
+            let weight = player_list.length * 16 - distance * Math.max(scores[i], scores[j]);
+            //let weight = Math.max(scores[i], scores[j]) * distance;
+
             edges.push([i, j, weight]);
         }
 
@@ -1064,10 +1135,11 @@ function pair_players() {
         //     edges.push([i, j, 1]);
         // }
     }
-/*     console.log(player_list)
+    if(print_gate) {
+    /* console.log(player_list)
     console.log(scores)
     console.log(edges) */
-
+        }
     let result = blossom(edges, true);
     for (let i = 0; i < result.length - 1; i++) {
         if (i > result[i]) {
@@ -1094,8 +1166,10 @@ function pair_players() {
     pairs = pairs.sort((a,b) => calc_score(b[0]) - calc_score(a[0]));
     all_edges.push({round: round, edges: edges, scores: scores, pairs: pairs});
     return pairs;
+}
 
-    /* old version
+function old_pair_players() {
+    //old version
     let pairs = [];
 
     let ignored_player = null;
@@ -1131,7 +1205,6 @@ function pair_players() {
     }
 
     return pairs;
-    */
 }
 
 
@@ -1141,6 +1214,10 @@ for (let n = 1; n <= simulations; n++) {
     //reset player_list
     for (let player of player_list) {
         player.games = [];
+    }
+
+    if (player_list.length % 2 === 1) {
+        player_list.push({ id: -1, group: 0, skill: 0, games: [], name: "bye" });
     }
 
     print_gate = (print_only_last_simulation !== true || n === simulations);
@@ -1169,26 +1246,36 @@ for (let n = 1; n <= simulations; n++) {
         let resStrs = { 0: '0-1', 0.5: '½-½', 1: '1-0' };
 
         for (let pair of pairs) {
+                let p1S
+                let p2S
+                let win_perc
+            if (print_gate) {
+                p1S = `${pair[0].name.padStart(pad_size)} (${calc_score(pair[0], round)})`; //calc_score(pair[0])
+                p2S = `${pair[1].name.padStart(pad_size)} (${calc_score(pair[1], round)})`; //pair[1].skill
+
+                let skill_gap = Math.abs(pair[0].skill - pair[1].skill);
+                win_perc
+                if (skill_gap + 1 > win_percentage_skillgap.length) { win_perc = 100 }
+                else { win_perc = win_percentage_skillgap[skill_gap] } //if skill gap is zero --> first entry
+            }
             let result = determine_result(pair[0], pair[1]);
             pair[0].games.push({ round: round, opponent: pair[1], result: result });
             if (pair[1].id !== -1) {
                 pair[1].games.push({ round: round, opponent: pair[0], result: 1 - result });
             }
 
-            if (print_gate) {
-                let p1S = `${pair[0].name.padStart(pad_size)} (${calc_score(pair[0], round)})`; //calc_score(pair[0])
-                let p2S = `${pair[1].name.padStart(pad_size)} (${calc_score(pair[1], round)})`; //pair[1].skill
-
-                let skill_gap = Math.abs(pair[0].skill - pair[1].skill);
-                let win_perc
-                if (skill_gap + 1 > win_percentage_skillgap.length) { win_perc = 100 }
-                else { win_perc = win_percentage_skillgap[skill_gap] } //if skill gap is zero --> first entry
-
-                console.log(`${resStrs[result]} ${p1S} vs ${p2S} ${win_perc}%`);
-            }
+            if (print_gate) {console.log(`${resStrs[result]} ${p1S} vs ${p2S} ${win_perc}%`);}
         }
     }
 
+    //delete bye player
+    for (let i = 0; i < player_list.length; i++) {
+        if (player_list[i].name === "bye") {
+            player_list.splice(i, 1);
+          break; // Exit the loop after deleting the object
+        }
+      }
+    
     //Print Results
     if (print_gate) {
         console.log(``);
@@ -1204,4 +1291,13 @@ for (let n = 1; n <= simulations; n++) {
     }
 }
 //console.log(simulation_results)
+if(simulation_results[0] === true || simulation_results[0] === false){
 console.log(check_percent(simulation_results)) //console.log(player_list);
+} else {
+let sum = simulation_results.reduce((accumulator, currentValue) => accumulator + currentValue, 0);
+let average = (sum / simulation_results.length).toFixed(2);
+console.log(average)
+}
+
+
+
