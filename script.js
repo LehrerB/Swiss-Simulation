@@ -8,7 +8,7 @@ var result = blossom(data, true);
 */
 
 //This is where you can change the details of the simulation
-let simulations = 1000; //number of simulations
+let simulations = 1; //number of simulations
 let simulation_results = []; //result for every simulation
 let rounds = 7; //number of rounds
 let round = 0; // current round
@@ -33,10 +33,11 @@ let player_of_interest_1 = 1
 let player_of_interest_2 = 12
 let player_of_interest_3 = 13
 
-let draw_on_purpose = false;
 let better_player_always_wins_equals_draw = true;
 let randomize_round_1 = true;
 let print_only_last_simulation = true;
+let consider_white_black = true;
+let draw_on_purpose = false;
 let treat_bye_as_player = false; //for tiebreak calculation
 
 let win_percentage_skillgap = [50, 60, 70, 85, 90, 95, 98, 98, 100]
@@ -66,6 +67,15 @@ let player_list = [
 
 
 //functions
+
+function count_white_games(player) {
+    let sum = 0;
+    for (let game of player.games){
+        if(game.color === 'w'){sum++}
+    }
+    return sum;
+}
+
 function calc_score(player, rounds) {
     let sum = 0;
     // if rounds is undefined, sum score of all games
@@ -1122,10 +1132,12 @@ function pair_players() {
             if (p1.games.some(v => v.opponent.id === p2.id)) {
                 continue;
             }
-
+            let dis_w = 0
+            if(consider_white_black){
+                dis_w = Math.abs(count_white_games(p1) - count_white_games(p2))
+            }
             let distance = Math.abs(scores[i] - scores[j]);
-            let weight = player_list.length * 16 - distance * Math.max(scores[i], scores[j]);
-            //let weight = Math.max(scores[i], scores[j]) * distance;
+            let weight = (player_list.length * points_win * rounds - distance * Math.max(scores[i], scores[j])) * 100 + dis_w;
 
             edges.push([i, j, weight]);
         }
@@ -1135,6 +1147,7 @@ function pair_players() {
         //     edges.push([i, j, 1]);
         // }
     }
+    shuffleArray(edges)
     if(print_gate) {
     /* console.log(player_list)
     console.log(scores)
@@ -1201,7 +1214,7 @@ function old_pair_players() {
     }
 
     if (ignored_player != null) {
-        pairs.push([ignored_player, { id: -1, skill: 0, games: [], name: "bye" }]);
+        pairs.push([ignored_player, { id: -1, skill: 0, games: [], name: "bye" }]); //no white and black
     }
 
     return pairs;
@@ -1246,6 +1259,21 @@ for (let n = 1; n <= simulations; n++) {
         let resStrs = { 0: '0-1', 0.5: '½-½', 1: '1-0' };
 
         for (let pair of pairs) {
+            if (consider_white_black){
+                //player with less white games needs to be first
+                //if both scores are the same, the pair is shuffled
+                
+                if (count_white_games(pair[0]) > count_white_games(pair[1])){
+                [pair[0], pair[1]] = [pair[1], pair[0]];
+                }
+                if (count_white_games(pair[0]) === count_white_games(pair[1])){
+                    shuffleArray(pair)
+                }
+                //if you opponent is bye, you get white automatically
+                if (pair[0].id === -1){
+                    [pair[0], pair[1]] = [pair[1], pair[0]];
+                    }
+            }
                 let p1S
                 let p2S
                 let win_perc
@@ -1259,11 +1287,17 @@ for (let n = 1; n <= simulations; n++) {
                 else { win_perc = win_percentage_skillgap[skill_gap] } //if skill gap is zero --> first entry
             }
             let result = determine_result(pair[0], pair[1]);
-            pair[0].games.push({ round: round, opponent: pair[1], result: result });
+            if(consider_white_black){ //save with color or without
+            pair[0].games.push({ round: round, opponent: pair[1], result: result, color: 'w'});
             if (pair[1].id !== -1) {
-                pair[1].games.push({ round: round, opponent: pair[0], result: 1 - result });
+                pair[1].games.push({ round: round, opponent: pair[0], result: points_win - result , color: 'b'});
             }
-
+            } else {
+                pair[0].games.push({ round: round, opponent: pair[1], result: result });
+                if (pair[1].id !== -1) {
+                    pair[1].games.push({ round: round, opponent: pair[0], result: points_win - result });
+                }
+                }
             if (print_gate) {console.log(`${resStrs[result]} ${p1S} vs ${p2S} ${win_perc}%`);}
         }
     }
